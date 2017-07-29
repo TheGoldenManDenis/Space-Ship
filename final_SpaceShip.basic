@@ -1,0 +1,374 @@
+REM Space Ship
+REM by Patrick M
+REM ==================== initialise global variables ====================
+angle=PI*2
+st=(PI*2)/16
+dr=(PI*2)/3
+x=640:y=512
+xmomentum=0
+ymomentum=0
+
+max_bullets%=4
+DIM bullets_st%(max_bullets%),bullets_x%(max_bullets%),bullets_y%(max_bullets%),bullet_angles(max_bullets%)
+num_bullets%=0
+bulletspeed=10
+
+max_rocks%=30
+DIM rocks_st%(max_rocks%),rock_angles(max_rocks%),rocks_x(max_rocks%),rocks_y(max_rocks%),rocks_size%(max_rocks%)
+rockspeed=1.5
+rockspeedlimit=6
+rockchance%=94
+rockmaxsize%=35
+rockmaxsizelimit%=75
+
+max_dust%=80: REM 64
+DIM dust_st%(max_dust%),dust_angles(max_dust%),dust_x(max_dust%),dust_y(max_dust%),dust_speed(max_dust%)
+
+dead%=FALSE
+invincible%=TRUE
+TIME=0
+t%=300
+periodlength%=1301
+period%=periodlength%
+periods_passed%=0
+REM ==================== end of initialise global variables ====================
+
+MODE 1: OFF
+
+PROCtitlescreen
+
+REPEAT
+
+ IF TIME MOD 10=0 THEN PROCrock
+ PROCdraw
+ WAIT(1)
+ PROCinput
+ PROCmove
+ PROCcollision
+ PROCgamelogic
+
+UNTIL 0
+
+END
+
+DEFPROCdraw
+ LOCAL i%
+
+ CLS
+
+ IF NOT dead% THEN
+  CIRCLE x+SIN(angle)*30,y+COS(angle)*30,20
+  MOVE x+SIN(angle)*30,y+COS(angle)*30
+  GCOL0,3
+  DRAW x+SIN(angle+dr)*30,y+COS(angle+dr)*30
+  GCOL0,2
+  DRAW x+SIN(angle+(dr*2))*30,y+COS(angle+(dr*2))*30
+  GCOL0,1
+  DRAW x+SIN(angle+(dr*3))*30,y+COS(angle+(dr*3))*30
+ 
+  IF invincible% THEN CIRCLE x,y,40
+ 
+ ENDIF
+
+ GCOL0,1
+ FOR i%=1 TO max_bullets%
+  
+  IF bullets_st%(i%) THEN CIRCLE bullets_x%(i%),bullets_y%(i%),7
+ 
+ NEXT
+
+ GCOL0,2
+ FOR i%=1 TO max_rocks%
+ 
+  IF rocks_st%(i%) THEN CIRCLE rocks_x(i%),rocks_y(i%),rocks_size%(i%)
+
+ NEXT
+
+ GCOL0,3
+ FOR i%=1 TO max_dust%
+ 
+  IF dust_st%(i%) THEN CIRCLE dust_x(i%),dust_y(i%),1
+
+ NEXT
+ 
+ENDPROC
+
+DEFPROCinput
+ LOCAL i%
+
+ k$=INKEY$(1)
+ IF k$="z" THEN angle=angle-st
+ IF k$="x" THEN angle=angle+st
+ IF k$=" " THEN xmomentum+=SIN(angle)*3: ymomentum+=COS(angle)*3
+ IF k$="/" AND NOT dead% THEN 
+  FOR i%=1 TO max_bullets%
+   IF NOT bullets_st%(i%) THEN
+
+    bullets_st%(i%)	= TRUE:
+    bullets_x%(i%)	= x+SIN(angle)*30
+    bullets_y%(i%)	= y+COS(angle)*30
+    bullet_angles(i%)	= angle
+  
+    i%=max_bullets%
+
+   ENDIF
+  NEXT
+ ENDIF
+
+ENDPROC
+
+DEFPROCmove
+ LOCAL i%
+
+ IF NOT dead% THEN
+  x+=xmomentum/4
+  y+=ymomentum/4
+
+  IF x>1280 THEN  x=0
+  IF x<0    THEN  x=1280
+  IF y>1024 THEN  y=0
+  IF y<0    THEN  y=1024
+ ENDIF
+
+
+ FOR i%=1 TO max_bullets%
+ 
+  IF bullets_st%(i%) THEN 
+  
+   bullets_x%(i%)+=SIN(bullet_angles(i%))*bulletspeed
+   bullets_y%(i%)+=COS(bullet_angles(i%))*bulletspeed
+   
+   IF bullets_x%(i%)>1280 OR bullets_x%(i%)<0 OR bullets_y%(i%)>1024 OR bullets_y%(i%)<0 THEN bullets_st%(i%)=FALSE
+
+  ENDIF
+ 
+ NEXT
+
+ FOR i%=1 TO max_rocks%
+
+  IF rocks_st%(i%) THEN
+  
+   rocks_x(i%)+=SIN(rock_angles(i%))*rockspeed
+   rocks_y(i%)+=COS(rock_angles(i%))*rockspeed
+
+   IF rocks_x(i%)>1280+140 OR rocks_x(i%)<-140 OR rocks_y(i%)>1024+140 OR rocks_y(i%)<-140 THEN rocks_st%(i%)=FALSE
+ 
+  ENDIF
+
+ NEXT
+
+ FOR i%=1 TO max_dust%
+ 
+  IF dust_st%(i%) THEN
+ 
+   dust_x(i%)+=SIN(dust_angles(i%))*dust_speed(i%)
+   dust_y(i%)+=COS(dust_angles(i%))*dust_speed(i%)
+
+   IF dust_x(i%)>1280 OR dust_x(i%)<0 OR dust_y(i%)>1024 OR dust_y(i%)<0 THEN dust_st%(i%)=FALSE
+ 
+  ENDIF
+
+ NEXT
+ 
+ENDPROC
+
+DEFPROCrock
+ LOCAL i%,starting_angle
+ 
+ IF RND(100)>rockchance% THEN
+ 
+  FOR i%=1 TO max_rocks% DIV 2
+   IF NOT rocks_st%(i%) THEN
+ 
+    rocks_st%(i%)=TRUE
+
+    starting_angle=RND(7)+(RND(1)/36)
+
+    rocks_x(i%)=640+SIN(starting_angle)*(640+120)
+    rocks_y(i%)=512+COS(starting_angle)*(512+120)
+    
+    starting_angle+=RND(1)/1.5
+    rock_angles(i%)=starting_angle-PI
+
+    rocks_size%(i%)=15+RND(rockmaxsize%)
+
+    i%=max_rocks%
+   ENDIF
+  NEXT    
+
+ ENDIF
+ENDPROC
+DEFPROCsplitrock(rock%)
+ LOCAL i%,angle_a,angle_b,first%,split_angle
+ first%=TRUE
+
+ angle_a=rock_angles(rock%)+0.28
+ angle_b=rock_angles(rock%)-0.28
+ REM split_angle=RND(7)+(RND(1))
+ split_angle=rock_angles(rock%)+(PI/2)
+
+ FOR i%=1 TO max_rocks%
+
+  IF NOT rocks_st%(i%) THEN
+
+   rocks_st%(i%)=TRUE
+   rocks_size%(i%)=rocks_size%(rock%)/1.8
+
+   IF first% THEN
+    first%=FALSE
+    rock_angles(i%)=angle_a
+
+    rocks_x(i%)=rocks_x(rock%)+SIN(split_angle)*(rocks_size%(rock%) DIV 2)
+    rocks_y(i%)=rocks_y(rock%)+COS(split_angle)*(rocks_size%(rock%) DIV 2)
+   ELSE
+    rock_angles(i%)=angle_b
+   
+    rocks_x(i%)=rocks_x(rock%)-SIN(split_angle)*(rocks_size%(rock%) DIV 2)
+    rocks_y(i%)=rocks_y(rock%)-COS(split_angle)*(rocks_size%(rock%) DIV 2)
+  
+    i%=max_rocks%
+   ENDIF
+
+  ENDIF
+ 
+ NEXT
+
+ENDPROC
+
+DEFPROCcollision
+ LOCAL i%,j%,dist_x%,dist_y%
+ 
+ REM check to see if a bullet is colliding with a rock
+
+ FOR i%=1 TO max_bullets%
+  FOR j%=1 TO max_rocks%
+
+   IF bullets_st%(i%) AND rocks_st%(j%) THEN
+
+    dist_x%=ABS(bullets_x%(i%)-rocks_x(j%))
+    dist_y%=ABS(bullets_y%(i%)-rocks_y(j%))
+
+    IF dist_x%+dist_y%<rocks_size%(j%) THEN
+     IF rocks_size%(j%)>24 THEN PROCsplitrock(j%)
+     rocks_st%(j%)=FALSE
+     PROCdust(10,bullets_x%(i%),bullets_y%(i%))
+     bullets_st%(i%)=FALSE
+    ENDIF
+
+   ENDIF   
+
+  NEXT
+ NEXT
+
+ REM check to see if the ship is colliding with a rock
+
+ FOR i%=1 TO max_rocks%
+
+  IF NOT dead% AND NOT invincible% AND rocks_st%(i%) THEN
+ 
+   dist_x%=ABS((x+SIN(angle)*30)-rocks_x(i%))
+   dist_y%=ABS((y+COS(angle)*30)-rocks_y(i%))
+
+   IF dist_x%+dist_y%<20+rocks_size%(i%) THEN
+  
+    dead%=TRUE
+    PROCdust(max_dust%/1.5,x,y)
+    IF rocks_size%(i%)>24 THEN PROCsplitrock(i%)
+    rocks_st%(i%)=FALSE
+    PROCdust(10,rocks_x(i%),rocks_y(i%))
+
+    t%=TIME+250
+
+   ENDIF
+
+  ENDIF
+
+ NEXT
+
+ENDPROC
+
+DEFPROCdust(amount%,xx,yy)
+ LOCAL i%
+
+ FOR i%=1 TO max_dust%
+  IF NOT dust_st%(i%) THEN
+ 
+    dust_st%(i%)=TRUE
+    dust_angles(i%)=RND(7)+(RND(1))
+
+    dust_x(i%)=xx+RND(1)*2
+    dust_y(i%)=yy+RND(1)*2
+ 
+    dust_speed(i%)=1+RND(3)+RND(1)    
+
+    amount%-=1
+    IF amount%<=0 THEN i%=max_dust%
+
+  ENDIF
+ NEXT
+
+ENDPROC
+
+DEFPROCgamelogic
+ 
+ IF TIME>t% AND dead% THEN 
+
+  dead%=FALSE
+ 
+  xmomentum=0
+  ymomentum=0
+
+  x=200+RND(1280-400)
+  y=200+RND(1024-400)
+
+  invincible%=TRUE
+  t%=TIME+325
+  
+ ENDIF
+
+ IF TIME>t% AND invincible% THEN
+ 
+  invincible%=FALSE
+ 
+ ENDIF
+
+ IF TIME>period% THEN
+  period%=TIME+periodlength%
+  periods_passed%+=1
+  
+  IF periods_passed% MOD 2=0 AND rockchance%>0 THEN rockchance%-=2
+
+  IF periods_passed% MOD 3=0 AND rockmaxsize%<rockmaxsizelimit% THEN rockmaxsize%+=2
+ 
+  IF periods_passed% MOD 2=0 AND rockspeed<rockspeedlimit THEN rockspeed+=0.125
+ ENDIF
+ 
+ENDPROC
+
+DEFPROCdebugdisplay
+ LOCAL i%,rockcount%,rockfree%,dustcount%,dustfree%
+
+ FOR i%=1 TO max_rocks%
+  IF rocks_st%(i%) THEN rockcount%+=1 ELSE rockfree%+=1
+ NEXT
+ 
+ FOR i%=1 TO max_dust%
+  IF dust_st%(i%) THEN dustcount%+=1 ELSE dustfree%+=1
+ NEXT
+
+ VDU30
+
+ PRINT TAB(0,0) ;"Rc: ";rockcount%; TAB(7,0) ;"Rf: ";rockfree%; TAB(15,0) ;"Dc: ";dustcount%; TAB(23,0) ;"Df: ";dustfree%
+
+ PRINT TAB(0,1) "Pr:" ;periods_passed%; TAB(7,1) ;"R.ch:";rockchance%; TAB(17,1) ;"R.spd:"rockspeed; TAB(29,1) ;"R.MSz:";rockmaxsize%
+
+ENDPROC
+
+DEFPROCtitlescreen
+ DRAW 1,1:CLS
+ PRINT "Space Ship"
+ PRINT "Written by Patrick M"
+ PRINT "Controls: SPACE, Z, X, /"
+ PRINT '"Press any key to begin"
+ LOCAL key%: key%=GET
+ENDPROC
